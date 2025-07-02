@@ -56,10 +56,8 @@ python train_res_transformer_memo_cross_vimo.py --name rtrans_memo_cross_l6_bs64
 * `--name`: name your model. This will create to model space as `./checkpoints/<dataset_name>/<name>`
 * `--batch_size`: we use `256` for rvq training. For masked/residual transformer, we use `64`.
 * `--num_quantizers`: number of quantization layers, `6` is used in our case.
-* `--quantize_drop_prob`: quantization dropout ratio, `0.2` is used.
 * `--vq_name`: when training masked/residual transformer, you need to specify the name of rvq model for tokenization.
-* `--cond_drop_prob`: condition drop ratio, for classifier-free guidance. `0.2` is used.
-* `--share_weight`: whether to share the projection/embedding weights in residual transformer.
+* `--n_layers`: number of transformer decoder layers, `6` is used in our case.
 
 All the trained models and intermediate results will be saved in space `./checkpoints/<dataset_name>/<name>`.
 </details>
