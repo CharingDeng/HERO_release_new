@@ -101,6 +101,8 @@ python gen.py --gpu_id 0 --ext exp1 --dataset_name vimo --vq_name rvq_bs256_fine
 `motion_length` indicates the number of poses, which must be integeter and will be rounded by 4. The maximum value is 200.
 
 The generated motion and stick figure animation will be stored under folder `./generation/<ext>/`.
+
+For the motion visualization with SMPL, please refer to [T2M-GPT](https://github.com/Mael-zys/T2M-GPT?tab=readme-ov-file#6-smpl-mesh-rendering) and [MLD](https://github.com/ChenFengYe/motion-latent-diffusion/tree/main#-visualization).
   
 </details>
 
