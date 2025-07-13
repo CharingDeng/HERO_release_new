@@ -1,5 +1,5 @@
-# HERO: Human Reaction Generation from Video (ICCV 2025)
-### [[ArXiv]](https://arxiv.org/abs/2503.08270) 
+# HERO: Human Reaction Generation from Videos (ICCV 2025)
+### [[arXiv]](https://arxiv.org/abs/2503.08270) 
 ![teaser_image](assets/teaser.png)
 
 ## :round_pushpin: Get You Ready
