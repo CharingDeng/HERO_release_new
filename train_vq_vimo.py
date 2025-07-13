@@ -64,7 +64,7 @@ if __name__ == "__main__":
         raise KeyError('Dataset Does not Exists')
 
     wrapper_opt = get_opt(dataset_opt_path, torch.device('cuda'))
-    #breakpoint()
+    
     eval_wrapper = EvaluatorModelWrapper(wrapper_opt)
     
     mean = np.load(pjoin(opt.data_root, 'Mean.npy'))
@@ -104,11 +104,5 @@ if __name__ == "__main__":
                             shuffle=True, pin_memory=True)
     
     eval_val_loader, _ = get_dataset_motion_loader(dataset_opt_path, 32, 'motions_test', device=opt.device)
-    #breakpoint()
-    trainer.train(train_loader, val_loader, eval_val_loader, eval_wrapper, plot_t2m)
 
-'''
-python train_vq_vimo.py --name rvq_bs256_finetune_ep10 --gpu_id 0 --window_size 20 \
-    --dataset_name vimo --batch_size 256 --num_quantizers 6 --max_epoch 10 \
-    --warm_up_iter 20 --milestones 1600 3200 --finetune
-'''
+    trainer.train(train_loader, val_loader, eval_val_loader, eval_wrapper, plot_t2m)

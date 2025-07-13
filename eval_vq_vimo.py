@@ -113,7 +113,4 @@ if __name__ == "__main__":
         print(msg_final, file=f, flush=True)
 
     f.close()
-
-'''
-python eval_vq_vimo.py --gpu_id 0 --name rvq_bs256_finetune_ep10 --dataset_name vimo --ext rvq_nq6
-'''
+    
