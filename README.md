@@ -89,6 +89,21 @@ The final evaluation results will be saved in `./checkpoints/<dataset_name>/<nam
 
 </details>
 
+## :rocket: Generation
+<details>
+
+```
+python gen.py --gpu_id 0 --ext exp1 --dataset_name vimo --vq_name rvq_bs256_finetune_ep10 \
+    --name mtrans_memo_cross_l6_bs64_ep200 --res_name rtrans_memo_cross_l6_bs64_ep200 \
+    --video_path <path to the input video> --motion_length <the number of poses for generation>
+```
+
+`motion_length` indicates the number of poses, which must be integeter and will be rounded by 4. The maximum value is 200.
+
+The generated motion and stick figure animation will be stored under folder `./generation/<ext>/`.
+  
+</details>
+
 ## Acknowlegements
 
 We sincerely thank the open-sourcing of these works where our code is based on: 
