@@ -139,14 +139,9 @@ def load_tcclip_model(model_path, model):
     checkpoint = torch.load(model_path, map_location='cpu')
     load_state_dict = checkpoint['model']
 
-    # now remove the unwanted keys:
-    unwanted_params = set()
-    for param_name in load_state_dict.keys():
+    for param_name in list(load_state_dict.keys()):
         if 'image_encoder' not in param_name:
-            unwanted_params.add(param_name)
-
-    for param_name in unwanted_params:
-        del load_state_dict[param_name]
+            del load_state_dict[param_name]
     
     msg = model.load_state_dict(load_state_dict, strict=False)
     print(f"loaded model: {msg}")

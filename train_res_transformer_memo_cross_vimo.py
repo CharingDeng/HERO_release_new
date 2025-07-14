@@ -184,7 +184,7 @@ if __name__ == '__main__':
     pc_transformer = sum(param.numel() for param in res_transformer.parameters_wo_clip())
 
     # print(res_transformer)
-    # print("Total parameters of t2m_transformer net: {:.2f}M".format(pc_transformer / 1000_000))
+    # print("Total parameters of res_transformer net: {:.2f}M".format(pc_transformer / 1000_000))
     all_params += pc_transformer
 
     print('Total parameters of res_transformer model: {:.2f}M'.format(all_params / 1000_000))
