@@ -22,6 +22,9 @@ from utils.paramUtil import t2m_kinematic_chain
 from data.vimo_dataset import VimoDataset, train_pipeline, val_pipeline
 from models.t2m_eval_wrapper import EvaluatorModelWrapper
 
+from cluster_styles import cluster_styles
+from utils.metrics import compute_style_loss
+
 from tqdm import tqdm
 import warnings
 warnings.filterwarnings('ignore')
@@ -188,6 +191,17 @@ if __name__ == '__main__':
     all_params += pc_transformer
 
     print('Total parameters of res_transformer model: {:.2f}M'.format(all_params / 1000_000))
+
+    # Dynamic ann_file and styles_file for train
+    # Dynamic ann_file and styles_file for train
+    opt.ann_file = opt.train_txt
+    opt.styles_file = 'styles_train.txt' if 'styles' in opt.styles_file else opt.styles_file
+    train_dataset = VimoDataset(opt, mean, std, data_prefix=opt.data_root, ann_file=opt.ann_file, pipeline=train_pipeline)
+    
+    # For validation, switch to test
+    opt.ann_file = opt.test_txt
+    opt.styles_file = 'styles_test.txt' if 'styles' in opt.styles_file else opt.styles_file
+    val_dataset = VimoDataset(opt, mean, std, data_prefix=opt.data_root, ann_file=opt.ann_file, pipeline=val_pipeline)
 
     mean = np.load(pjoin(opt.checkpoints_dir, opt.dataset_name, opt.vq_name, 'meta', 'mean.npy'))
     std = np.load(pjoin(opt.checkpoints_dir, opt.dataset_name, opt.vq_name, 'meta', 'std.npy'))
