@@ -166,8 +166,10 @@ def prepare_video_encoder(clip_version):
 
 if __name__ == '__main__':
     parser = EvalT2MOptions()
+    parser.parser.add_argument('--style', type=int, default=None, help='Reaction style: 0-lively, 1-cheerful, 2-reserved, 3-steady')
     opt = parser.parse()
     fixseed(opt.seed)
+    style_label = torch.tensor([opt.style]).to(opt.device) if opt.style is not None else None
 
     opt.device = torch.device("cpu" if opt.gpu_id == -1 else "cuda:" + str(opt.gpu_id))
     torch.autograd.set_detect_anomaly(True)
@@ -284,15 +286,16 @@ if __name__ == '__main__':
         print("-->Repeat %d"%r)
         with torch.no_grad():
             mids = t2m_transformer.generate(at_features_mean, token_lens,
-                                            timesteps=opt.time_steps,
-                                            cond_scale=opt.cond_scale,
-                                            temperature=opt.temperature,
-                                            topk_filter_thres=opt.topkr,
-                                            gsample=opt.gumbel_sample,
-                                            memory=at_features)
+                                timesteps=opt.time_steps,
+                                cond_scale=opt.cond_scale,
+                                temperature=opt.temperature,
+                                topk_filter_thres=opt.topkr,
+                                gsample=opt.gumbel_sample,
+                                memory=at_features,
+                                style_label=style_label)
             # print(mids)
             # print(mids.shape)
-            mids = res_model.generate(mids, at_features_mean, token_lens, temperature=1, cond_scale=5, memory=at_features)
+            mids = res_model.generate(mids, at_features_mean, token_lens, temperature=1, cond_scale=5, memory=at_features, style_label=style_label)
             pred_motions = vq_model.forward_decoder(mids)
 
             pred_motions = pred_motions.detach().cpu().numpy()
