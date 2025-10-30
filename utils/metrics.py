@@ -1,7 +1,8 @@
 import numpy as np
 from scipy import linalg
 import torch
-
+from scipy.fft import fft
+from scipy.stats import entropy
 
 def calculate_mpjpe(gt_joints, pred_joints):
     """
@@ -167,5 +168,29 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
     return (diff.dot(diff) + np.trace(sigma1) +
             np.trace(sigma2) - 2 * tr_covmean)
 
+def extract_features(motion):
+    if motion.shape[0] < 10:
+        return [0.0] * 8  
+    j_p = motion[:, 4:70].reshape(motion.shape[0], 22, 3)
+    j_v = motion[:, 70:136].reshape(motion.shape[0], 22, 3)
+    disp = np.diff(j_p, axis=0)
+    amp = np.max(np.linalg.norm(disp, axis=2)) if disp.size > 0 else 0
+    flow_mean = np.mean(np.linalg.norm(disp, axis=2))
+    angles = np.arctan2(j_p[:, :, 1], j_p[:, :, 0])
+    hist, _ = np.histogram(angles.flatten(), bins=20)
+    entropy_val = entropy(hist + 1e-10)
+    var_mean = np.mean(np.var(j_p, axis=0))
+    speed = np.mean(np.linalg.norm(j_v, axis=2))
+    accel = np.diff(j_v, axis=0) / (1e-5 if j_v.shape[0] <= 1 else 1/(j_v.shape[0]-1))
+    accel_mean = np.mean(np.linalg.norm(accel, axis=2))
+    jerk = np.diff(accel, axis=0) / (1e-5 if accel.shape[0] <= 1 else 1/(accel.shape[0]-1))
+    jerk_mean = np.mean(np.linalg.norm(jerk, axis=2))
+    freq_spec = np.abs(fft(j_v.flatten()))[1:10]
+    freq_max = np.argmax(freq_spec) if freq_spec.size > 0 else 0
+    return [amp, speed, accel_mean, jerk_mean, freq_max, flow_mean, entropy_val, var_mean]
+
+def compute_style_loss(style_embed, generated_motion):
+    pred_feat = extract_features(generated_motion)
+    return np.mean((np.array(pred_feat) - style_embed)**2)
 
 
