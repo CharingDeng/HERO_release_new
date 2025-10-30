@@ -30,6 +30,14 @@ class BaseOptions():
         self.parser.add_argument('--train_txt', type=str, default='train.txt', help='')
         self.parser.add_argument('--test_txt', type=str, default='test.txt', help='')
 
+        # Additions from your PDF modifications
+        self.parser.add_argument('--motion_dir', type=str, default='vector_263', help='Directory for motion features')
+
+        self.parser.add_argument('--styles_file', type=str, default='styles.txt', help='Txt file listing style JSON paths')
+        self.parser.add_argument('--data_prefix',type=str,default='../Data/VIMO',  help='Data root directory prefix')
+        self.parser.add_argument('--ann_file', type=str, default='train.txt', help='Annotation file for video-motion pairs (e.g., train.txt, test.txt, seen.txt, unseen.txt)')
+        self.parser.add_argument('--eval_mode', type=str, default='all', choices=['all', 'seen', 'unseen'], help='Evaluation mode: all (default train/test), seen, or unseen')
+
         self.initialized = True
 
     def parse(self):
@@ -39,6 +47,18 @@ class BaseOptions():
         self.opt = self.parser.parse_args()
 
         self.opt.is_train = self.is_train
+
+        # Dynamic adjustment based on eval_mode if not in train
+        if hasattr(self.opt, 'eval_mode') and not self.opt.is_train:
+            if self.opt.eval_mode == 'seen':
+                self.opt.ann_file = 'seen.txt'
+                self.opt.styles_file = 'styles_seen.txt'
+            elif self.opt.eval_mode == 'unseen':
+                self.opt.ann_file = 'unseen.txt'
+                self.opt.styles_file = 'styles_unseen.txt'
+        # 'all' uses default train/test based on is_train
+
+        self.styles_file = os.path.join(self.opt.data_prefix, self.opt.styles_file)
 
         if self.opt.gpu_id != -1:
             # self.opt.gpu_id = int(self.opt.gpu_id)
