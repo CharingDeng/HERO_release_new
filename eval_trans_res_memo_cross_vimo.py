@@ -17,6 +17,8 @@ from custom_clip import clip
 import utils.eval_vimo as eval_vimo
 from utils.fixseed import fixseed
 
+from utils.metrics import compute_style_loss
+
 import numpy as np
 from tqdm import tqdm
 import warnings
@@ -59,7 +61,7 @@ def load_trans_model(model_opt, which_model):
     ckpt = torch.load(pjoin(model_opt.checkpoints_dir, model_opt.dataset_name, model_opt.name, 'model', which_model),
                       map_location=opt.device)
     model_key = 't2m_transformer' if 't2m_transformer' in ckpt else 'trans'
-    # print(ckpt.keys())
+    print(ckpt.keys())
     missing_keys, unexpected_keys = t2m_transformer.load_state_dict(ckpt[model_key], strict=False)
     assert len(unexpected_keys) == 0
     # assert all([k.startswith('clip_model.') for k in missing_keys])
@@ -196,7 +198,8 @@ if __name__ == '__main__':
     model_opt.num_quantizers = vq_opt.num_quantizers
     model_opt.code_dim = vq_opt.code_dim
 
-    res_opt_path = pjoin(opt.checkpoints_dir, opt.dataset_name, opt.res_name, 'opt.txt')
+    res_opt_path = pjoin(opt.checkpoints_dir, opt.dataset_name, "rtrans_memo_cross_l6_bs64_ep200", "opt.txt")
+    #res_opt_path = pjoin(opt.checkpoints_dir, opt.dataset_name, opt.res_name, 'opt.txt')
     res_opt = get_opt(res_opt_path, device=opt.device)
     res_model = load_res_model(res_opt)
 
@@ -236,11 +239,12 @@ if __name__ == '__main__':
         div_real = []
         div = []
         mm = []
+        style_loss = []  # 新增
 
         repeat_time = 20
         for i in tqdm(range(repeat_time)):
             with torch.no_grad():
-                eval_fid, eval_div_real, eval_div, eval_mm = \
+                eval_fid, eval_div_real, eval_div, eval_mm, eval_style_loss = \
                     eval_vimo.evaluation_mask_transformer_test_plus_res_memo(eval_val_loader, vq_model, res_model, t2m_transformer, video_encoder,
                                                                         i, eval_wrapper=eval_wrapper, time_steps=opt.time_steps,
                                                                         cond_scale=opt.cond_scale, temperature=opt.temperature, topkr=opt.topkr,
@@ -249,6 +253,7 @@ if __name__ == '__main__':
             div_real.append(eval_div_real)
             div.append(eval_div)
             mm.append(eval_mm)
+            style_loss.append(eval_style_loss)  # 新增
 
         fid = np.array(fid)
         div_real = np.array(div_real)
@@ -258,13 +263,16 @@ if __name__ == '__main__':
         print(f'{file} final result, epoch {ep}')
         print(f'{file} final result, epoch {ep}', file=f, flush=True)
 
+        style_loss = np.array(style_loss)  # 新增
         msg_final = f"\tFID: {np.mean(fid):.3f}, conf. {np.std(fid) * 1.96 / np.sqrt(repeat_time):.3f}\n" \
                     f"\tDiversity Real: {np.mean(div_real):.3f}, conf. {np.std(div_real)*1.96/np.sqrt(repeat_time):.3f}\n" \
                     f"\tDiversity: {np.mean(div):.3f}, conf. {np.std(div) * 1.96 / np.sqrt(repeat_time):.3f}\n" \
-                    f"\tMultimodality:{np.mean(mm):.3f}, conf.{np.std(mm) * 1.96 / np.sqrt(repeat_time):.3f}\n\n"
+                    f"\tMultimodality:{np.mean(mm):.3f}, conf.{np.std(mm) * 1.96 / np.sqrt(repeat_time):.3f}\n" \
+                    f"\tStyle Loss: {np.mean(style_loss):.3f}, conf. {np.std(style_loss)*1.96/np.sqrt(repeat_time):.3f}\n"  # 新增 Style Loss 行
         # logger.info(msg_final)
         print(msg_final)
         print(msg_final, file=f, flush=True)
 
+    f.close()
     f.close()
     
