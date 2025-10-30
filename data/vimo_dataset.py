@@ -5,20 +5,19 @@ from tqdm import tqdm
 from torch.utils.data._utils.collate import default_collate
 import random
 import codecs as cs
+import json
 import os.path as osp
 import copy
 from abc import ABCMeta, abstractmethod
-
 import warnings
 warnings.filterwarnings(action='ignore', module='mmcv', category=UserWarning)
 
 from .pipeline import *
 
-
 def collate_fn(batch):
     batch.sort(key=lambda x: x[3], reverse=True)
     return default_collate(batch)
-
+    
 class VimoMotionDataset(Dataset):
     def __init__(self, opt, mean, std, split_file):
         self.opt = opt
@@ -59,8 +58,8 @@ class VimoMotionDataset(Dataset):
                     joints_num - 1) * 9] / 1.0
             # local_velocity (B, seq_len, joint_num*3)
             std[4 + (joints_num - 1) * 9: 4 + (joints_num - 1) * 9 + joints_num * 3] = std[
-                                                                                       4 + (joints_num - 1) * 9: 4 + (
-                                                                                               joints_num - 1) * 9 + joints_num * 3] / 1.0
+                                                                               4 + (joints_num - 1) * 9: 4 + (
+                                                                                       joints_num - 1) * 9 + joints_num * 3] / 1.0
             # foot contact (B, seq_len, 4)
             std[4 + (joints_num - 1) * 9 + joints_num * 3:] = std[
                                                               4 + (
@@ -241,13 +240,7 @@ class VimoBaseDataset(Dataset, metaclass=ABCMeta):
             motion = np.concatenate([motion,
                                      np.zeros((self.max_motion_length - m_length, motion.shape[1]))
                                      ], axis=0)
-
-        # del results['label']
-        # results['motion'] = motion
-        # results['motion_length'] = m_length
-        # return results
-
-        return results['imgs'], motion, m_length, results['filename']
+        return results['imgs'], motion, m_length, results['filename'], results['style_label']
 
     def __len__(self):
         """Get the size of the dataset."""
@@ -263,6 +256,35 @@ class VimoBaseDataset(Dataset, metaclass=ABCMeta):
 
 class VimoDataset(VimoBaseDataset):
     def __init__(self, opt, mean, std, data_prefix, ann_file, pipeline, start_index=0, **kwargs):
+        # Path to style labels txt file (now using opt.styles_file)
+        styles_file = osp.join(data_prefix, opt.styles_file)  # 修改为 opt.styles_file (使用参数 opt)
+        if not osp.exists(styles_file):
+            warnings.warn(f"Style labels txt file {styles_file} does not exist, will use default label 1")
+            
+        # Load all json paths from styles.txt and merge into self.styles dict
+        self.styles = {}
+        if osp.exists(styles_file):
+            with open(styles_file, 'r') as f:
+                for line in f:
+                    json_rel_path = line.strip()
+                    if not json_rel_path:
+                        continue
+                    json_path = osp.join(data_prefix, json_rel_path)
+                    try:
+                        with open(json_path, 'r', encoding='utf-8') as fj:
+                            style_data = json.load(fj)
+                        style_label = style_data.get('style_label', 1)
+                        if not isinstance(style_label, int):
+                            raise ValueError(f"Style label must be an integer, file: {json_path}")
+                        # json filename like "dodge-001-len86.json", corresponding motion file "dodge-001-len86.npy"
+                        json_basename = osp.basename(json_rel_path)
+                        motion_key = json_basename.replace('.json', '.npy')
+                        self.styles[motion_key] = style_label
+                    except Exception as e:
+                        warnings.warn(f"Failed to load style label file {json_path}: {str(e)}, skipping this file")
+        
+        print(f"Loaded {len(self.styles)} style labels from {styles_file}")
+        
         super().__init__(opt, mean, std, data_prefix, ann_file, pipeline, start_index=start_index, **kwargs)
 
     def load_annotations(self):
@@ -274,8 +296,29 @@ class VimoDataset(VimoBaseDataset):
                 video_name, motion_name = line_split
                 video_name = osp.join(self.data_prefix, video_name)
                 motion_name = osp.join(self.data_prefix, motion_name)
-                motion = np.load(motion_name)
-                video_infos.append(dict(filename=video_name, label=motion, tar=False))
+                
+                # Load motion data
+                try:
+                    motion = np.load(motion_name)
+                except Exception as e:
+                    warnings.warn(f"Failed to load motion file {motion_name}: {str(e)}, skipping this sample")
+                    continue
+                
+                # Get style label from dict, default to 1
+                motion_basename = osp.basename(motion_name)
+                style_label = self.styles.get(motion_basename, 1)
+                                
+                # Ensure style label is integer (if needed)
+                if not isinstance(style_label, int):
+                    warnings.warn(f"Style label {style_label} is not an integer, converting to 1")
+                    style_label = 1
+                
+                video_infos.append(dict(
+                    filename=video_name, 
+                    label=motion, 
+                    tar=False, 
+                    style_label=style_label
+                ))
         return video_infos
 
 
@@ -294,7 +337,7 @@ dict(type='DecordDecode'),
 dict(type='Resize', scale=(config_input_size, config_input_size), keep_ratio=False),
 dict(type='Normalize', **img_norm_cfg),
 dict(type='FormatShape', input_format='NCHW'),
-dict(type='Collect', keys=['imgs', 'label', 'filename'], meta_keys=[]),
+dict(type='Collect', keys=['imgs', 'label', 'filename', 'style_label'], meta_keys=[]),
 dict(type='ToTensor', keys=['imgs'])
 ]
 
@@ -307,7 +350,7 @@ dict(type='DecordDecode'),
 dict(type='Resize', scale=(config_input_size, config_input_size), keep_ratio=False),
 dict(type='Normalize', **img_norm_cfg),
 dict(type='FormatShape', input_format='NCHW'),
-dict(type='Collect', keys=['imgs', 'label', 'filename'], meta_keys=[]),
+dict(type='Collect', keys=['imgs', 'label', 'filename', 'style_label'], meta_keys=[]),
 dict(type='ToTensor', keys=['imgs'])
 ]
 
@@ -320,6 +363,6 @@ dict(type='DecordDecode'),
 dict(type='Resize', scale=(config_input_size, config_input_size), keep_ratio=False),
 dict(type='Normalize', **img_norm_cfg),
 dict(type='FormatShape', input_format='NCHW'),
-dict(type='Collect', keys=['imgs'], meta_keys=[]),
+dict(type='Collect', keys=['imgs', 'style_label'], meta_keys=[]),
 dict(type='ToTensor', keys=['imgs'])
 ]
