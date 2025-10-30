@@ -1,4 +1,5 @@
 import torch
+from utils.metrics import compute_style_loss
 from collections import defaultdict
 import torch.optim as optim
 # import tensorflow as tf
@@ -39,12 +40,13 @@ class MaskTransformerTrainer:
 
     def forward(self, batch_data):
 
-        imgs, motion, m_lens, video_path = batch_data
+        imgs, motion, m_lens, video_path, style_label = batch_data
         at_features_mean, at_features = self.video_encoder(imgs.cuda())
         conds = at_features_mean
         
         motion = motion.detach().float().to(self.device)
         m_lens = m_lens.detach().long().to(self.device)
+        style_label = style_label.to(self.device) if style_label is not None else None  # 新增：处理 style_label
 
         # (b, n, q)
         code_idx, _ = self.vq_model.encode(motion)
@@ -56,10 +58,14 @@ class MaskTransformerTrainer:
         # self.pred_ids = []
         # self.acc = []
 
-        _loss, _pred_ids, _acc = self.t2m_transformer(code_idx[..., 0], conds, m_lens, at_features)
+        _loss, _pred_ids, _acc = self.t2m_transformer(code_idx[..., 0], conds, m_lens, at_features, style_label=style_label)
+        # 计算风格嵌入和损失
+        s = self.t2m_transformer.style_embed(torch.tensor(style_label).to(self.device))  # [b, latent_dim]
+        generated_motion = self.vq_model.decoder(self.vq_model.quantizer.get_codebook_entry(code_idx, shape=code_idx.shape))  # 生成动作
+        style_loss = compute_style_loss(s.cpu().numpy(), generated_motion.cpu().numpy())
+        _loss += 0.1 * style_loss  # 默认权重0.1，可调整
 
         return _loss, _acc
-
     def update(self, batch_data):
         loss, acc = self.forward(batch_data)
 
@@ -184,9 +190,12 @@ class MaskTransformerTrainer:
             with torch.no_grad():
                 for i, batch_data in enumerate(val_loader):
                     loss, acc = self.forward(batch_data)
+                    pred_motions = ...  # 获取 pred_motions
+                    style_loss = compute_style_loss(pred_motions.cpu().numpy(), motion.cpu().numpy(), style_label)  # 新增：计算 style_loss
+                    loss += 0.1 * style_loss  # 新增：加权到 loss
                     val_loss.append(loss.item())
                     val_acc.append(acc)
-
+                    
             print(f"Validation loss:{np.mean(val_loss):.3f}, accuracy:{np.mean(val_acc):.3f}")
 
             self.logger.add_scalar('Val/loss', np.mean(val_loss), epoch)
