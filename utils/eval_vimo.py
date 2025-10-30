@@ -284,7 +284,8 @@ def evaluation_mask_transformer(out_dir, val_loader, trans, vq_model, video_enco
     nb_sample = 0
     # for i in range(1):
     for batch in val_loader:
-        imgs, pose, m_length, video_path = batch
+        imgs, pose, m_length, video_path, style_label = batch
+        style_label = style_label.cuda() 
         imgs_feat_mean, _ = video_encoder(imgs.cuda())
         m_length = m_length.cuda()
 
@@ -292,7 +293,7 @@ def evaluation_mask_transformer(out_dir, val_loader, trans, vq_model, video_enco
         # num_joints = 21 if pose.shape[-1] == 251 else 22
 
         # (b, seqlen)
-        mids = trans.generate(imgs_feat_mean, m_length//4, time_steps, cond_scale, temperature=1)
+        mids = trans.generate(imgs_feat_mean, m_length//4, time_steps, cond_scale, temperature=1,style_label=style_label)
 
         # motion_codes = motion_codes.permute(0, 2, 1)
         mids.unsqueeze_(-1)
@@ -377,7 +378,8 @@ def evaluation_res_transformer(out_dir, val_loader, trans, vq_model, video_encod
     nb_sample = 0
     # for i in range(1):
     for batch in val_loader:
-        imgs, pose, m_length, video_path = batch
+        imgs, pose, m_length, video_path, style_label = batch
+        style_label = style_label.cuda() 
         imgs_feat_mean, _ = video_encoder(imgs.cuda())
         m_length = m_length.cuda().long()
         pose = pose.cuda().float()
@@ -391,7 +393,7 @@ def evaluation_res_transformer(out_dir, val_loader, trans, vq_model, video_encod
             pred_ids = code_indices[..., 0:1]
         else:
             pred_ids = trans.generate(code_indices[..., 0], imgs_feat_mean, m_length//4,
-                                      temperature=temperature, cond_scale=cond_scale)
+                                      temperature=temperature, cond_scale=cond_scale,style_label=style_label)
             # pred_codes = trans(code_indices[..., 0], clip_text, m_length//4, force_mask=force_mask)
 
         pred_motions = vq_model.forward_decoder(pred_ids)
@@ -465,7 +467,8 @@ def evaluation_mask_transformer_test_plus_res(val_loader, vq_model, res_model, t
         num_mm_batch = 3
 
     for i, batch in enumerate(val_loader):
-        imgs, pose, m_length, video_path = batch
+        imgs, pose, m_length, video_path, style_label = batch
+        style_label = style_label.cuda() 
         imgs_feat_mean, _ = video_encoder(imgs.cuda())
         m_length = m_length.cuda()
 
@@ -479,8 +482,8 @@ def evaluation_mask_transformer_test_plus_res(val_loader, vq_model, res_model, t
             for _ in range(30):
                 mids = trans.generate(imgs_feat_mean, m_length // 4, time_steps, cond_scale,
                                       temperature=temperature, topk_filter_thres=topkr,
-                                      gsample=gsample, force_mask=force_mask)
-
+                                      gsample=gsample, force_mask=force_mask,style_label=style_label)
+                
                 # motion_codes = motion_codes.permute(0, 2, 1)
                 # mids.unsqueeze_(-1)
                 pred_ids = res_model.generate(mids, imgs_feat_mean, m_length // 4, temperature=1, cond_scale=res_cond_scale)
@@ -500,8 +503,8 @@ def evaluation_mask_transformer_test_plus_res(val_loader, vq_model, res_model, t
         else:
             mids = trans.generate(imgs_feat_mean, m_length // 4, time_steps, cond_scale,
                                   temperature=temperature, topk_filter_thres=topkr,
-                                  force_mask=force_mask)
-
+                                  force_mask=force_mask,style_label=style_label)
+            
             # motion_codes = motion_codes.permute(0, 2, 1)
             # mids.unsqueeze_(-1)
             pred_ids = res_model.generate(mids, imgs_feat_mean, m_length // 4, temperature=1, cond_scale=res_cond_scale)
@@ -562,7 +565,8 @@ def evaluation_mask_transformer_test(val_loader, vq_model, trans, video_encoder,
         num_mm_batch = 3
 
     for i, batch in enumerate(val_loader):
-        imgs, pose, m_length, video_path = batch
+        imgs, pose, m_length, video_path, style_label = batch
+        style_label = style_label.cuda() 
         imgs_feat_mean, _ = video_encoder(imgs.cuda())
         m_length = m_length.cuda()
 
@@ -576,7 +580,7 @@ def evaluation_mask_transformer_test(val_loader, vq_model, trans, video_encoder,
             for _ in range(30):
                 mids = trans.generate(imgs_feat_mean, m_length // 4, time_steps, cond_scale,
                                       temperature=temperature, topk_filter_thres=topkr,
-                                      gsample=gsample, force_mask=force_mask)
+                                      gsample=gsample, force_mask=force_mask,style_label=style_label)
 
                 # motion_codes = motion_codes.permute(0, 2, 1)
                 mids.unsqueeze_(-1)
@@ -590,7 +594,7 @@ def evaluation_mask_transformer_test(val_loader, vq_model, trans, video_encoder,
         else:
             mids = trans.generate(imgs_feat_mean, m_length // 4, time_steps, cond_scale,
                                   temperature=temperature, topk_filter_thres=topkr,
-                                  force_mask=force_mask)
+                                  force_mask=force_mask,style_label=style_label)
 
             # motion_codes = motion_codes.permute(0, 2, 1)
             mids.unsqueeze_(-1)
@@ -667,7 +671,8 @@ def evaluation_mask_transformer_fe(out_dir, val_loader, trans, vq_model, video_e
     nb_sample = 0
     # for i in range(1):
     for batch in val_loader:
-        imgs, pose, m_length, video_path = batch
+        imgs, pose, m_length, video_path, style_label = batch
+        style_label = style_label.cuda() 
         at_features_mean, _ = video_encoder(imgs.cuda())
         middle_frame = imgs[:, imgs.shape[1]//2, :, :, :]
         fe_features = fer.model(middle_frame.cuda())
@@ -679,8 +684,8 @@ def evaluation_mask_transformer_fe(out_dir, val_loader, trans, vq_model, video_e
         # num_joints = 21 if pose.shape[-1] == 251 else 22
 
         # (b, seqlen)
-        mids = trans.generate(imgs_feat, m_length//4, time_steps, cond_scale, temperature=1)
-
+         mids = trans.generate(imgs_feat, m_length//4, time_steps, cond_scale, temperature=1,style_label=style_label)
+        
         # motion_codes = motion_codes.permute(0, 2, 1)
         mids.unsqueeze_(-1)
         pred_motions = vq_model.forward_decoder(mids)
@@ -778,7 +783,8 @@ def evaluation_mask_transformer_fe_memo(out_dir, val_loader, trans, vq_model, vi
     nb_sample = 0
     # for i in range(1):
     for batch in val_loader:
-        imgs, pose, m_length, video_path = batch
+        imgs, pose, m_length, video_path, style_label = batch
+        style_label = style_label.cuda() 
         at_features_mean, at_features = video_encoder(imgs.cuda())
         middle_frame = imgs[:, imgs.shape[1]//2, :, :, :]
         fe_features = fer.model(middle_frame.cuda())
@@ -790,7 +796,7 @@ def evaluation_mask_transformer_fe_memo(out_dir, val_loader, trans, vq_model, vi
         # num_joints = 21 if pose.shape[-1] == 251 else 22
 
         # (b, seqlen)
-        mids = trans.generate(imgs_feat, m_length//4, time_steps, cond_scale, temperature=1, memory=at_features)
+        mids = trans.generate(imgs_feat, m_length//4, time_steps, cond_scale, temperature=1, memory=at_features,style_label=style_label)
 
         # motion_codes = motion_codes.permute(0, 2, 1)
         mids.unsqueeze_(-1)
@@ -885,7 +891,8 @@ def evaluation_mask_transformer_memo(out_dir, val_loader, trans, vq_model, video
     nb_sample = 0
     # for i in range(1):
     for batch in val_loader:
-        imgs, pose, m_length, video_path = batch
+        imgs, pose, m_length, video_path, style_label = batch
+        style_label = style_label.cuda()
         at_features_mean, at_features = video_encoder(imgs.cuda())
 
         m_length = m_length.cuda()
@@ -894,7 +901,7 @@ def evaluation_mask_transformer_memo(out_dir, val_loader, trans, vq_model, video
         # num_joints = 21 if pose.shape[-1] == 251 else 22
 
         # (b, seqlen)
-        mids = trans.generate(at_features_mean, m_length//4, time_steps, cond_scale, temperature=1, memory=at_features)
+        mids = trans.generate(at_features_mean, m_length//4, time_steps, cond_scale, temperature=1, memory=at_features,style_label=style_label)
 
         # motion_codes = motion_codes.permute(0, 2, 1)
         mids.unsqueeze_(-1)
@@ -983,7 +990,8 @@ def evaluation_res_transformer_fe(out_dir, val_loader, trans, vq_model, video_en
     nb_sample = 0
     # for i in range(1):
     for batch in val_loader:
-        imgs, pose, m_length, video_path = batch
+        imgs, pose, m_length, video_path, style_label = batch
+        style_label = style_label.cuda() 
         at_features_mean, _ = video_encoder(imgs.cuda())
         middle_frame = imgs[:, imgs.shape[1]//2, :, :, :]
         fe_features = fer.model(middle_frame.cuda())
@@ -1001,7 +1009,7 @@ def evaluation_res_transformer_fe(out_dir, val_loader, trans, vq_model, video_en
             pred_ids = code_indices[..., 0:1]
         else:
             pred_ids = trans.generate(code_indices[..., 0], imgs_feat, m_length//4,
-                                      temperature=temperature, cond_scale=cond_scale)
+                                      temperature=temperature, cond_scale=cond_scale,style_label=style_label)
             # pred_codes = trans(code_indices[..., 0], clip_text, m_length//4, force_mask=force_mask)
 
         pred_motions = vq_model.forward_decoder(pred_ids)
@@ -1084,7 +1092,8 @@ def evaluation_res_transformer_fe_memo(out_dir, val_loader, trans, vq_model, vid
     nb_sample = 0
     # for i in range(1):
     for batch in val_loader:
-        imgs, pose, m_length, video_path = batch
+        imgs, pose, m_length, video_path, style_label = batch
+        style_label = style_label.cuda() 
         at_features_mean, at_features = video_encoder(imgs.cuda())
         middle_frame = imgs[:, imgs.shape[1]//2, :, :, :]
         fe_features = fer.model(middle_frame.cuda())
@@ -1102,7 +1111,7 @@ def evaluation_res_transformer_fe_memo(out_dir, val_loader, trans, vq_model, vid
             pred_ids = code_indices[..., 0:1]
         else:
             pred_ids = trans.generate(code_indices[..., 0], imgs_feat, m_length//4,
-                                      temperature=temperature, cond_scale=cond_scale, memory=at_features)
+                                      temperature=temperature, cond_scale=cond_scale, memory=at_features,style_label=style_label)
             # pred_codes = trans(code_indices[..., 0], clip_text, m_length//4, force_mask=force_mask)
 
         pred_motions = vq_model.forward_decoder(pred_ids)
@@ -1181,7 +1190,8 @@ def evaluation_res_transformer_memo(out_dir, val_loader, trans, vq_model, video_
     nb_sample = 0
     # for i in range(1):
     for batch in val_loader:
-        imgs, pose, m_length, video_path = batch
+        imgs, pose, m_length, video_path, style_label = batch
+        style_label = style_label.cuda()
         at_features_mean, at_features = video_encoder(imgs.cuda())
 
         m_length = m_length.cuda().long()
@@ -1196,7 +1206,7 @@ def evaluation_res_transformer_memo(out_dir, val_loader, trans, vq_model, video_
             pred_ids = code_indices[..., 0:1]
         else:
             pred_ids = trans.generate(code_indices[..., 0], at_features_mean, m_length//4,
-                                      temperature=temperature, cond_scale=cond_scale, memory=at_features)
+                                      temperature=temperature, cond_scale=cond_scale, memory=at_features,style_label=style_label)
             # pred_codes = trans(code_indices[..., 0], clip_text, m_length//4, force_mask=force_mask)
 
         pred_motions = vq_model.forward_decoder(pred_ids)
@@ -1273,7 +1283,8 @@ def evaluation_mask_transformer_test_plus_res_fe(val_loader, vq_model, res_model
         num_mm_batch = 3
 
     for i, batch in enumerate(val_loader):
-        imgs, pose, m_length, video_path = batch
+        imgs, pose, m_length, video_path, style_label = batch
+        style_label = style_label.cuda() 
         at_features_mean, _ = video_encoder(imgs.cuda())
         middle_frame = imgs[:, imgs.shape[1]//2, :, :, :]
         fe_features = fer.model(middle_frame.cuda())
@@ -1292,7 +1303,7 @@ def evaluation_mask_transformer_test_plus_res_fe(val_loader, vq_model, res_model
             for _ in range(30):
                 mids = trans.generate(imgs_feat4trans, m_length // 4, time_steps, cond_scale,
                                       temperature=temperature, topk_filter_thres=topkr,
-                                      gsample=gsample, force_mask=force_mask)
+                                      gsample=gsample, force_mask=force_mask,style_label=style_label)
 
                 # motion_codes = motion_codes.permute(0, 2, 1)
                 # mids.unsqueeze_(-1)
@@ -1313,7 +1324,7 @@ def evaluation_mask_transformer_test_plus_res_fe(val_loader, vq_model, res_model
         else:
             mids = trans.generate(imgs_feat4trans, m_length // 4, time_steps, cond_scale,
                                   temperature=temperature, topk_filter_thres=topkr,
-                                  force_mask=force_mask)
+                                  force_mask=force_mask,style_label=style_label)
 
             # motion_codes = motion_codes.permute(0, 2, 1)
             # mids.unsqueeze_(-1)
@@ -1379,7 +1390,8 @@ def evaluation_mask_transformer_test_plus_res_fe_memo(val_loader, vq_model, res_
         num_mm_batch = 3
 
     for i, batch in enumerate(val_loader):
-        imgs, pose, m_length, video_path = batch
+        imgs, pose, m_length, video_path, style_label = batch
+        style_label = style_label.cuda() 
         at_features_mean, at_features = video_encoder(imgs.cuda())
         middle_frame = imgs[:, imgs.shape[1]//2, :, :, :]
         fe_features = fer.model(middle_frame.cuda())
@@ -1398,7 +1410,7 @@ def evaluation_mask_transformer_test_plus_res_fe_memo(val_loader, vq_model, res_
             for _ in range(30):
                 mids = trans.generate(imgs_feat4trans, m_length // 4, time_steps, cond_scale,
                                       temperature=temperature, topk_filter_thres=topkr,
-                                      gsample=gsample, force_mask=force_mask, memory=at_features)
+                                      gsample=gsample, force_mask=force_mask, memory=at_features,style_label=style_label)
 
                 # motion_codes = motion_codes.permute(0, 2, 1)
                 # mids.unsqueeze_(-1)
@@ -1419,7 +1431,7 @@ def evaluation_mask_transformer_test_plus_res_fe_memo(val_loader, vq_model, res_
         else:
             mids = trans.generate(imgs_feat4trans, m_length // 4, time_steps, cond_scale,
                                   temperature=temperature, topk_filter_thres=topkr,
-                                  force_mask=force_mask, memory=at_features)
+                                  force_mask=force_mask, memory=at_features,style_label=style_label)
 
             # motion_codes = motion_codes.permute(0, 2, 1)
             # mids.unsqueeze_(-1)
@@ -1482,7 +1494,8 @@ def evaluation_mask_transformer_test_plus_res_memo(val_loader, vq_model, res_mod
         num_mm_batch = 3
 
     for i, batch in enumerate(val_loader):
-        imgs, pose, m_length, video_path = batch
+        imgs, pose, m_length, video_path, style_label = batch
+        style_label = style_label.cuda() 
         at_features_mean, at_features = video_encoder(imgs.cuda())
 
         m_length = m_length.cuda()
@@ -1497,7 +1510,7 @@ def evaluation_mask_transformer_test_plus_res_memo(val_loader, vq_model, res_mod
             for _ in range(30):
                 mids = trans.generate(at_features_mean, m_length // 4, time_steps, cond_scale,
                                       temperature=temperature, topk_filter_thres=topkr,
-                                      gsample=gsample, force_mask=force_mask, memory=at_features)
+                                      gsample=gsample, force_mask=force_mask, memory=at_features,style_label=style_label)
 
                 # motion_codes = motion_codes.permute(0, 2, 1)
                 # mids.unsqueeze_(-1)
@@ -1518,7 +1531,7 @@ def evaluation_mask_transformer_test_plus_res_memo(val_loader, vq_model, res_mod
         else:
             mids = trans.generate(at_features_mean, m_length // 4, time_steps, cond_scale,
                                   temperature=temperature, topk_filter_thres=topkr,
-                                  force_mask=force_mask, memory=at_features)
+                                  force_mask=force_mask, memory=at_features,style_label=style_label)
 
             # motion_codes = motion_codes.permute(0, 2, 1)
             # mids.unsqueeze_(-1)
@@ -1582,7 +1595,8 @@ def evaluation_mask_transformer_fe_test(val_loader, vq_model, trans, video_encod
         num_mm_batch = 3
 
     for i, batch in enumerate(val_loader):
-        imgs, pose, m_length, video_path = batch
+        imgs, pose, m_length, video_path, style_label = batch
+        style_label = style_label.cuda() 
         at_features_mean, _ = video_encoder(imgs.cuda())
         middle_frame = imgs[:, imgs.shape[1]//2, :, :, :]
         fe_features = fer.model(middle_frame.cuda())
@@ -1600,7 +1614,7 @@ def evaluation_mask_transformer_fe_test(val_loader, vq_model, trans, video_encod
             for _ in range(30):
                 mids = trans.generate(imgs_feat4trans, m_length // 4, time_steps, cond_scale,
                                       temperature=temperature, topk_filter_thres=topkr,
-                                      gsample=gsample, force_mask=force_mask)
+                                      gsample=gsample, force_mask=force_mask,style_label=style_label)
 
                 # motion_codes = motion_codes.permute(0, 2, 1)
                 mids.unsqueeze_(-1)
@@ -1614,7 +1628,7 @@ def evaluation_mask_transformer_fe_test(val_loader, vq_model, trans, video_encod
         else:
             mids = trans.generate(imgs_feat4trans, m_length // 4, time_steps, cond_scale,
                                   temperature=temperature, topk_filter_thres=topkr,
-                                  force_mask=force_mask)
+                                  force_mask=force_mask,style_label=style_label)
 
             # motion_codes = motion_codes.permute(0, 2, 1)
             mids.unsqueeze_(-1)
