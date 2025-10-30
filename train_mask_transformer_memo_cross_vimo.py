@@ -26,6 +26,8 @@ from tqdm import tqdm
 import warnings
 warnings.filterwarnings('ignore')
 
+from cluster_styles import cluster_styles
+from utils.metrics import compute_style_loss
 
 def plot_t2m(data, save_dir, captions, m_lengths):
     data = train_dataset.inv_transform(data)
@@ -130,7 +132,7 @@ if __name__ == '__main__':
     parser = TrainT2MOptions()
     opt = parser.parse()
     fixseed(opt.seed)
-
+    
     opt.device = torch.device("cpu" if opt.gpu_id == -1 else "cuda:" + str(opt.gpu_id))
     torch.autograd.set_detect_anomaly(True)
 
@@ -188,6 +190,14 @@ if __name__ == '__main__':
     all_params += pc_transformer
 
     print('Total parameters of mask_transformer model: {:.2f}M'.format(all_params / 1000_000))
+
+    # Dynamic ann_file and styles_file for train
+    opt.ann_file = opt.train_txt
+    opt.styles_file = 'styles_train.txt'
+    
+    # For validation, switch to test
+    opt.ann_file = opt.test_txt
+    opt.styles_file = 'styles_test.txt'
 
     mean = np.load(pjoin(opt.checkpoints_dir, opt.dataset_name, opt.vq_name, 'meta', 'mean.npy'))
     std = np.load(pjoin(opt.checkpoints_dir, opt.dataset_name, opt.vq_name, 'meta', 'std.npy'))
