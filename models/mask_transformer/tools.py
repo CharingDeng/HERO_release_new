@@ -4,9 +4,12 @@ import math
 from einops import rearrange
 
 # return mask where padding is FALSE
-def lengths_to_mask(lengths, max_len):
+def lengths_to_mask(lengths, max_len=None):
     # max_len = max(lengths)
-    mask = torch.arange(max_len, device=lengths.device).expand(len(lengths), max_len) < lengths.unsqueeze(1)
+    if max_len is None:
+        max_len = lengths.max().item() 
+    indices = torch.arange(max_len, device=lengths.device).expand(len(lengths), max_len)
+    mask = indices >= lengths.unsqueeze(1)
     return mask #(b, len)
 
 # return mask where padding is ALL FALSE
